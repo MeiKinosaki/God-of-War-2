@@ -14,11 +14,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  ee-decoder:
+  ee-cpu-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Compile decoder tests
-        run: cc -std=c11 -Wall -Wextra -Werror -pedantic src/cpu/ee_decode.c tests/test_ee_decode.c -o test_ee_decode
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/cpu src/cpu/ee_decode.c tests/test_ee_decode.c -o test_ee_decode
       - name: Run decoder tests
         run: ./test_ee_decode
+      - name: Compile state tests
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/cpu src/cpu/ee_state.c tests/test_ee_state.c -o test_ee_state
+      - name: Run state tests
+        run: ./test_ee_state
