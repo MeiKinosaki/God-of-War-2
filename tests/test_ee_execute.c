@@ -51,6 +51,32 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x0F, 0, 8, 0x8000)) == EE_STEP_OK);
     assert(cpu.gpr[8] == UINT64_C(0xFFFFFFFF80000000));
 
+    /* Taken BEQ executes the next instruction as its delay slot. */
+    ee_cpu_reset(&cpu);
+    cpu.gpr[1] = 7;
+    cpu.gpr[2] = 7;
+    assert(ee_execute_instruction(&cpu, i_type(0x04, 1, 2, 2)) == EE_STEP_OK);
+    assert(cpu.pc == 4 && cpu.next_pc == 12 && cpu.branch_pending == 1);
+    assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 42)) == EE_STEP_OK);
+    assert(cpu.gpr[3] == 42);
+    assert(cpu.pc == 12 && cpu.next_pc == 16 && cpu.branch_pending == 0);
+
+    /* Not-taken BNE still reserves the delay slot. */
+    ee_cpu_reset(&cpu);
+    cpu.gpr[1] = 7;
+    cpu.gpr[2] = 7;
+    assert(ee_execute_instruction(&cpu, i_type(0x05, 1, 2, 3)) == EE_STEP_OK);
+    assert(cpu.pc == 4 && cpu.next_pc == 8 && cpu.branch_pending == 1);
+    assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 11)) == EE_STEP_OK);
+    assert(cpu.pc == 8 && cpu.next_pc == 12 && cpu.branch_pending == 0);
+    
+    /* JAL stores PC+8 and transfers control after its delay slot. */
+    ee_cpu_reset(&cpu);
+    assert(ee_execute_instruction(&cpu, (0x03u << 26) | 4u) == EE_STEP_OK);
+    assert(cpu.gpr[31] == 8 && cpu.pc == 4 && cpu.next_pc == 16);
+    assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 1)) == EE_STEP_OK);
+    assert(cpu.pc == 16 && cpu.next_pc == 20 && cpu.branch_pending == 0);
+
     cpu.gpr[0] = 123;
     assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 0, 99)) == EE_STEP_OK);
     assert(cpu.gpr[0] == 0);
