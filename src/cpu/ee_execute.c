@@ -50,7 +50,7 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
         }
         break;
     default:
-        return d.kind == EE_OP_INVALID ? EE_STEP_UNSUPPORTED : EE_STEP_UNSUPPORTED;
+        return EE_STEP_UNSUPPORTED;
     }
 
     /* GPR zero is immutable in this model. Branches and delay slots are
