@@ -11,6 +11,7 @@ typedef enum {
     EE_OP_BEQ,
     EE_OP_BNE,
     EE_OP_ADDIU,
+    EE_OP_DADDIU,
     EE_OP_SLTI,
     EE_OP_SLTIU,
     EE_OP_ANDI,
@@ -33,10 +34,7 @@ typedef struct {
     uint32_t target;
 } ee_decoded_instruction;
 
-/* Decode one 32-bit instruction word into its primary fields.
- * This initial decoder intentionally recognizes only a small subset.
- * Unsupported and reserved encodings return EE_OP_INVALID.
- */
+/* Decode a limited subset of 32-bit R5900 instruction encodings. */
 ee_decoded_instruction ee_decode_instruction(uint32_t word);
 
 #endif
