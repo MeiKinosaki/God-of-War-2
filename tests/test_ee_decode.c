@@ -14,8 +14,11 @@ int main(void)
     ee_decoded_instruction d;
 
     d = ee_decode_instruction(i_type(0x09, 3, 4, 0xFFFE));
-    assert(d.kind == EE_OP_ADDIU);
-    assert(d.rs == 3 && d.rt == 4);
+    assert(d.kind == EE_OP_ADDIU && d.rs == 3 && d.rt == 4);
+    assert(d.immediate == 0xFFFE);
+
+    d = ee_decode_instruction(i_type(0x19, 3, 4, 0xFFFE));
+    assert(d.kind == EE_OP_DADDIU && d.rs == 3 && d.rt == 4);
     assert(d.immediate == 0xFFFE);
 
     d = ee_decode_instruction(i_type(0x0D, 1, 2, 0xABCD));
