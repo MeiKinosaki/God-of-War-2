@@ -13,16 +13,13 @@ ee_decoded_instruction ee_decode_instruction(uint32_t word)
     d.target = word & 0x03FFFFFFu;
 
     switch (d.opcode) {
-    case 0x00:
-        /* This only identifies the SPECIAL encoding class. The funct field
-         * still needs a separate, validated R5900 instruction table. */
-        d.kind = EE_OP_SPECIAL;
-        break;
+    case 0x00: d.kind = EE_OP_SPECIAL; break;
     case 0x02: d.kind = EE_OP_J; break;
     case 0x03: d.kind = EE_OP_JAL; break;
     case 0x04: d.kind = EE_OP_BEQ; break;
     case 0x05: d.kind = EE_OP_BNE; break;
     case 0x09: d.kind = EE_OP_ADDIU; break;
+    case 0x19: d.kind = EE_OP_DADDIU; break;
     case 0x0A: d.kind = EE_OP_SLTI; break;
     case 0x0B: d.kind = EE_OP_SLTIU; break;
     case 0x0C: d.kind = EE_OP_ANDI; break;
