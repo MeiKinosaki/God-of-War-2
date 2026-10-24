@@ -18,18 +18,31 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
     ee_decoded_instruction d;
     uint64_t lhs;
     uint64_t result;
+    int64_t signed_immediate;
 
     if (state == NULL)
         return EE_STEP_INVALID_ARGUMENT;
 
     d = ee_decode_instruction(instruction);
+    if (d.kind == EE_OP_INVALID)
+        return EE_STEP_UNSUPPORTED;
+
     lhs = state->gpr[d.rs];
+    signed_immediate = sign_extend_16(d.immediate);
 
     switch (d.kind) {
     case EE_OP_ADDIU:
-        result = lhs + (uint64_t)sign_extend_16(d.immediate);
+        result = lhs + (uint64_t)signed_immediate;
         if (d.rt != 0u)
             state->gpr[d.rt] = result;
+        break;
+    case EE_OP_SLTI:
+        if (d.rt != 0u)
+            state->gpr[d.rt] = ((int64_t)lhs < signed_immediate) ? 1u : 0u;
+        break;
+    case EE_OP_SLTIU:
+        if (d.rt != 0u)
+            state->gpr[d.rt] = (lhs < (uint64_t)signed_immediate) ? 1u : 0u;
         break;
     case EE_OP_ANDI:
         if (d.rt != 0u)
@@ -53,8 +66,8 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
         return EE_STEP_UNSUPPORTED;
     }
 
-    /* GPR zero is immutable in this model. Branches and delay slots are
-     * intentionally not executed by this first arithmetic-only step.
+    /* This stage intentionally models sequential execution only. Branches,
+     * delay slots, exceptions and full R5900-width semantics remain pending.
      */
     state->gpr[0] = 0;
     advance_sequential_pc(state);
