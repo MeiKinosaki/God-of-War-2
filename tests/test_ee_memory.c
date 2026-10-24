@@ -21,8 +21,7 @@ int main(void)
     assert(ee_memory_read8(&memory, 15, &byte) && byte == 0x5A);
     assert(!ee_memory_read8(&memory, 16, &byte));
     assert(!ee_memory_write32(&memory, 2, 0xFFFFFFFFu));
-    assert(!ee_memory_read32(&memory, 12, &word) == 0); /* aligned final word is valid */
-    assert(ee_memory_read32(&memory, 12, &word));
+    assert(ee_memory_read32(&memory, 12, &word)); /* aligned final word is valid */
     assert(!ee_memory_write32(&memory, 16, 0));
     assert(!ee_memory_init(0, storage, sizeof storage));
 
