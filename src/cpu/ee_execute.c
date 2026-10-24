@@ -52,23 +52,23 @@ static ee_step_result execute_internal(ee_cpu_state *state, uint32_t instruction
     switch (d.kind) {
     case EE_OP_SPECIAL:
         switch (d.funct) {
-        case 0x00: result = sign_extend_32((uint32_t)rhs << d.shamt); break; /* SLL */
-        case 0x02: result = sign_extend_32((uint32_t)rhs >> d.shamt); break; /* SRL */
-        case 0x08: /* JR */
+        case 0x00: result = sign_extend_32((uint32_t)rhs << d.shamt); break;
+        case 0x02: result = sign_extend_32((uint32_t)rhs >> d.shamt); break;
+        case 0x08:
             if (was_delay_slot != 0u) return EE_STEP_UNSUPPORTED;
             state->next_pc = (uint32_t)lhs;
             state->branch_pending = 1u;
             result = 0;
             break;
-        case 0x09: /* JALR */
+        case 0x09:
             if (was_delay_slot != 0u) return EE_STEP_UNSUPPORTED;
             if (d.rd != 0u) state->gpr[d.rd] = (uint64_t)(old_pc + 8u);
             state->next_pc = (uint32_t)lhs;
             state->branch_pending = 1u;
             result = 0;
             break;
-        case 0x21: result = sign_extend_32((uint32_t)lhs + (uint32_t)rhs); break; /* ADDU */
-        case 0x23: result = sign_extend_32((uint32_t)lhs - (uint32_t)rhs); break; /* SUBU */
+        case 0x21: result = sign_extend_32((uint32_t)lhs + (uint32_t)rhs); break;
+        case 0x23: result = sign_extend_32((uint32_t)lhs - (uint32_t)rhs); break;
         case 0x24: result = lhs & rhs; break;
         case 0x25: result = lhs | rhs; break;
         case 0x26: result = lhs ^ rhs; break;
@@ -81,6 +81,9 @@ static ee_step_result execute_internal(ee_cpu_state *state, uint32_t instruction
             state->gpr[d.rd] = result;
         break;
     case EE_OP_ADDIU:
+        if (d.rt != 0u) state->gpr[d.rt] = lhs + (uint64_t)signed_immediate;
+        break;
+    case EE_OP_DADDIU:
         if (d.rt != 0u) state->gpr[d.rt] = lhs + (uint64_t)signed_immediate;
         break;
     case EE_OP_SLTI:
@@ -106,12 +109,10 @@ static ee_step_result execute_internal(ee_cpu_state *state, uint32_t instruction
         if (memory == NULL) return EE_STEP_UNSUPPORTED;
         address = (uint32_t)lhs + (uint32_t)signed_immediate;
         if (d.kind == EE_OP_LW) {
-            if (!ee_memory_read32(memory, address, &word))
-                return EE_STEP_MEMORY_FAULT;
+            if (!ee_memory_read32(memory, address, &word)) return EE_STEP_MEMORY_FAULT;
             if (d.rt != 0u) state->gpr[d.rt] = sign_extend_32(word);
         } else {
-            if (!ee_memory_write32(memory, address, (uint32_t)rhs))
-                return EE_STEP_MEMORY_FAULT;
+            if (!ee_memory_write32(memory, address, (uint32_t)rhs)) return EE_STEP_MEMORY_FAULT;
         }
         break;
     case EE_OP_BEQ:
