@@ -1,0 +1,24 @@
+name: Host CPU tests
+
+on:
+  push:
+    paths:
+      - "src/cpu/**"
+      - "tests/**"
+      - ".github/workflows/host-cpu-tests.yml"
+  pull_request:
+    paths:
+      - "src/cpu/**"
+      - "tests/**"
+      - ".github/workflows/host-cpu-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  ee-decoder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile decoder tests
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic src/cpu/ee_decode.c tests/test_ee_decode.c -o test_ee_decode
+      - name: Run decoder tests
+        run: ./test_ee_decode
