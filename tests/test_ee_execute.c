@@ -23,7 +23,22 @@ int main(void)
     assert(cpu.pc == 4 && cpu.next_pc == 8);
 
     assert(ee_execute_instruction(&cpu, i_type(0x09, 1, 3, 0xFFFF)) == EE_STEP_OK);
-    assert(cpu.gpr[3] == 9); /* ADDIU sign-extends the immediate. */
+    assert(cpu.gpr[3] == 9);
+
+    cpu.gpr[1] = 5;
+    assert(ee_execute_instruction(&cpu, i_type(0x0A, 1, 9, 6)) == EE_STEP_OK);
+    assert(cpu.gpr[9] == 1);
+    assert(ee_execute_instruction(&cpu, i_type(0x0A, 1, 9, 4)) == EE_STEP_OK);
+    assert(cpu.gpr[9] == 0);
+    assert(ee_execute_instruction(&cpu, i_type(0x0A, 1, 9, 0xFFFF)) == EE_STEP_OK);
+    assert(cpu.gpr[9] == 0);
+
+    cpu.gpr[1] = UINT64_MAX;
+    assert(ee_execute_instruction(&cpu, i_type(0x0B, 1, 10, 1)) == EE_STEP_OK);
+    assert(cpu.gpr[10] == 0);
+    cpu.gpr[1] = 0;
+    assert(ee_execute_instruction(&cpu, i_type(0x0B, 1, 10, 0xFFFF)) == EE_STEP_OK);
+    assert(cpu.gpr[10] == 1);
 
     cpu.gpr[4] = UINT64_C(0xF0F0);
     assert(ee_execute_instruction(&cpu, i_type(0x0C, 4, 5, 0x00FF)) == EE_STEP_OK);
