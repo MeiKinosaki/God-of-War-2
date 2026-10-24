@@ -26,12 +26,13 @@ static void advance_after_instruction(ee_cpu_state *state, uint32_t old_next_pc,
     }
 }
 
-ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
+static ee_step_result execute_internal(ee_cpu_state *state, uint32_t instruction,
+                                       ee_memory *memory)
 {
     ee_decoded_instruction d;
     uint64_t lhs, rhs, result;
     int64_t signed_immediate;
-    uint32_t old_pc, old_next_pc;
+    uint32_t old_pc, old_next_pc, address, word;
     uint8_t was_delay_slot;
 
     if (state == NULL)
@@ -51,12 +52,8 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
     switch (d.kind) {
     case EE_OP_SPECIAL:
         switch (d.funct) {
-        case 0x00: /* SLL */
-            result = sign_extend_32((uint32_t)rhs << d.shamt);
-            break;
-        case 0x02: /* SRL */
-            result = sign_extend_32((uint32_t)rhs >> d.shamt);
-            break;
+        case 0x00: result = sign_extend_32((uint32_t)rhs << d.shamt); break; /* SLL */
+        case 0x02: result = sign_extend_32((uint32_t)rhs >> d.shamt); break; /* SRL */
         case 0x08: /* JR */
             if (was_delay_slot != 0u) return EE_STEP_UNSUPPORTED;
             state->next_pc = (uint32_t)lhs;
@@ -70,27 +67,21 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
             state->branch_pending = 1u;
             result = 0;
             break;
-        case 0x21: /* ADDU: 32-bit result sign-extended */
-            result = sign_extend_32((uint32_t)lhs + (uint32_t)rhs);
-            break;
-        case 0x23: /* SUBU */
-            result = sign_extend_32((uint32_t)lhs - (uint32_t)rhs);
-            break;
-        case 0x24: result = lhs & rhs; break; /* AND */
-        case 0x25: result = lhs | rhs; break; /* OR */
-        case 0x26: result = lhs ^ rhs; break; /* XOR */
-        case 0x27: result = ~(lhs | rhs); break; /* NOR */
+        case 0x21: result = sign_extend_32((uint32_t)lhs + (uint32_t)rhs); break; /* ADDU */
+        case 0x23: result = sign_extend_32((uint32_t)lhs - (uint32_t)rhs); break; /* SUBU */
+        case 0x24: result = lhs & rhs; break;
+        case 0x25: result = lhs | rhs; break;
+        case 0x26: result = lhs ^ rhs; break;
+        case 0x27: result = ~(lhs | rhs); break;
         case 0x2A: result = ((int64_t)lhs < (int64_t)rhs) ? 1u : 0u; break;
         case 0x2B: result = (lhs < rhs) ? 1u : 0u; break;
-        default:
-            return EE_STEP_UNSUPPORTED;
+        default: return EE_STEP_UNSUPPORTED;
         }
-        if ((d.funct != 0x08u) && (d.funct != 0x09u) && d.rd != 0u)
+        if (d.funct != 0x08u && d.funct != 0x09u && d.rd != 0u)
             state->gpr[d.rd] = result;
         break;
     case EE_OP_ADDIU:
-        result = lhs + (uint64_t)signed_immediate;
-        if (d.rt != 0u) state->gpr[d.rt] = result;
+        if (d.rt != 0u) state->gpr[d.rt] = lhs + (uint64_t)signed_immediate;
         break;
     case EE_OP_SLTI:
         if (d.rt != 0u) state->gpr[d.rt] = ((int64_t)lhs < signed_immediate) ? 1u : 0u;
@@ -108,8 +99,20 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
         if (d.rt != 0u) state->gpr[d.rt] = lhs ^ (uint64_t)d.immediate;
         break;
     case EE_OP_LUI:
-        if (d.rt != 0u)
-            state->gpr[d.rt] = sign_extend_32((uint32_t)d.immediate << 16);
+        if (d.rt != 0u) state->gpr[d.rt] = sign_extend_32((uint32_t)d.immediate << 16);
+        break;
+    case EE_OP_LW:
+    case EE_OP_SW:
+        if (memory == NULL) return EE_STEP_UNSUPPORTED;
+        address = (uint32_t)lhs + (uint32_t)signed_immediate;
+        if (d.kind == EE_OP_LW) {
+            if (!ee_memory_read32(memory, address, &word))
+                return EE_STEP_MEMORY_FAULT;
+            if (d.rt != 0u) state->gpr[d.rt] = sign_extend_32(word);
+        } else {
+            if (!ee_memory_write32(memory, address, (uint32_t)rhs))
+                return EE_STEP_MEMORY_FAULT;
+        }
         break;
     case EE_OP_BEQ:
     case EE_OP_BNE: {
@@ -135,4 +138,16 @@ ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
     state->gpr[0] = 0;
     advance_after_instruction(state, old_next_pc, was_delay_slot);
     return EE_STEP_OK;
+}
+
+ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction)
+{
+    return execute_internal(state, instruction, NULL);
+}
+
+ee_step_result ee_execute_instruction_with_memory(ee_cpu_state *state,
+                                                   uint32_t instruction,
+                                                   ee_memory *memory)
+{
+    return execute_internal(state, instruction, memory);
 }
