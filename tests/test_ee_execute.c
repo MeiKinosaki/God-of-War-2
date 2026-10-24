@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 static uint32_t i_type(uint8_t opcode, uint8_t rs, uint8_t rt, uint16_t imm)
 {
@@ -20,6 +21,8 @@ static uint32_t r_type(uint8_t rs, uint8_t rt, uint8_t rd,
 int main(void)
 {
     ee_cpu_state cpu;
+    uint8_t storage[32];
+    ee_memory memory;
 
     ee_cpu_reset(&cpu);
     cpu.gpr[1] = 10;
@@ -53,7 +56,6 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x0F, 0, 8, 0x8000)) == EE_STEP_OK);
     assert(cpu.gpr[8] == UINT64_C(0xFFFFFFFF80000000));
 
-    /* SPECIAL arithmetic: word results sign-extend to 64 bits. */
     ee_cpu_reset(&cpu);
     cpu.gpr[1] = UINT32_C(0x7FFFFFFF);
     cpu.gpr[2] = 1;
@@ -72,7 +74,6 @@ int main(void)
     assert(ee_execute_instruction(&cpu, r_type(0, 2, 9, 4, 0x00)) == EE_STEP_OK);
     assert(cpu.gpr[9] == 16);
 
-    /* Taken BEQ and not-taken BNE both execute one delay-slot instruction. */
     ee_cpu_reset(&cpu);
     cpu.gpr[1] = cpu.gpr[2] = 7;
     assert(ee_execute_instruction(&cpu, i_type(0x04, 1, 2, 2)) == EE_STEP_OK);
@@ -93,7 +94,6 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 1)) == EE_STEP_OK);
     assert(cpu.pc == 16 && cpu.next_pc == 20 && !cpu.branch_pending);
 
-    /* JR uses a register target after its delay slot. */
     ee_cpu_reset(&cpu);
     cpu.gpr[5] = 0x100;
     assert(ee_execute_instruction(&cpu, r_type(5, 0, 0, 0, 0x08)) == EE_STEP_OK);
@@ -101,14 +101,29 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 2)) == EE_STEP_OK);
     assert(cpu.pc == 0x100 && cpu.next_pc == 0x104 && !cpu.branch_pending);
 
+    /* LW/SW integrate with the bounded, little-endian memory model. */
+    memset(storage, 0, sizeof(storage));
+    assert(ee_memory_init(&memory, storage, sizeof(storage)));
+    ee_cpu_reset(&cpu);
+    cpu.gpr[1] = 4;
+    cpu.gpr[2] = UINT64_C(0xFFFFFFFF89ABCDEF);
+    assert(ee_execute_instruction_with_memory(&cpu, i_type(0x2B, 1, 2, 0), &memory) == EE_STEP_OK);
+    assert(storage[4] == 0xEF && storage[5] == 0xCD &&
+           storage[6] == 0xAB && storage[7] == 0x89);
+    assert(ee_execute_instruction_with_memory(&cpu, i_type(0x23, 1, 3, 0), &memory) == EE_STEP_OK);
+    assert(cpu.gpr[3] == UINT64_C(0xFFFFFFFF89ABCDEF));
+
+    {
+        uint32_t old_pc = cpu.pc, old_next_pc = cpu.next_pc;
+        cpu.gpr[1] = 31;
+        assert(ee_execute_instruction_with_memory(&cpu, i_type(0x23, 1, 3, 0), &memory) == EE_STEP_MEMORY_FAULT);
+        assert(cpu.pc == old_pc && cpu.next_pc == old_next_pc);
+        assert(ee_execute_instruction(&cpu, i_type(0x23, 1, 3, 0)) == EE_STEP_UNSUPPORTED);
+    }
+
     cpu.gpr[0] = 123;
     assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 0, 99)) == EE_STEP_OK);
     assert(cpu.gpr[0] == 0);
-    {
-        uint32_t old_pc = cpu.pc, old_next_pc = cpu.next_pc;
-        assert(ee_execute_instruction(&cpu, i_type(0x23, 0, 1, 0)) == EE_STEP_UNSUPPORTED);
-        assert(cpu.pc == old_pc && cpu.next_pc == old_next_pc);
-    }
     assert(ee_execute_instruction(NULL, 0) == EE_STEP_INVALID_ARGUMENT);
     puts("EE execute tests passed");
     return 0;
