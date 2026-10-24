@@ -31,6 +31,14 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x09, 1, 3, 0xFFFF)) == EE_STEP_OK);
     assert(cpu.gpr[3] == 9);
 
+    /* DADDIU retains the 64-bit source value and sign-extends its immediate. */
+    ee_cpu_reset(&cpu);
+    cpu.gpr[1] = UINT64_C(0x00000001FFFFFFFF);
+    assert(ee_execute_instruction(&cpu, i_type(0x19, 1, 2, 1)) == EE_STEP_OK);
+    assert(cpu.gpr[2] == UINT64_C(0x0000000200000000));
+    assert(ee_execute_instruction(&cpu, i_type(0x19, 1, 3, 0xFFFF)) == EE_STEP_OK);
+    assert(cpu.gpr[3] == UINT64_C(0x00000001FFFFFFFE));
+
     cpu.gpr[1] = 5;
     assert(ee_execute_instruction(&cpu, i_type(0x0A, 1, 9, 6)) == EE_STEP_OK);
     assert(cpu.gpr[9] == 1);
@@ -101,7 +109,6 @@ int main(void)
     assert(ee_execute_instruction(&cpu, i_type(0x09, 0, 3, 2)) == EE_STEP_OK);
     assert(cpu.pc == 0x100 && cpu.next_pc == 0x104 && !cpu.branch_pending);
 
-    /* LW/SW integrate with the bounded, little-endian memory model. */
     memset(storage, 0, sizeof(storage));
     assert(ee_memory_init(&memory, storage, sizeof(storage)));
     ee_cpu_reset(&cpu);
