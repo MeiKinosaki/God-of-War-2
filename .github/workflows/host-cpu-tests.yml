@@ -32,3 +32,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/memory src/memory/ee_memory.c tests/test_ee_memory.c -o test_ee_memory
       - name: Run memory tests
         run: ./test_ee_memory
+      - name: Compile EE execution tests
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/cpu src/cpu/ee_decode.c src/cpu/ee_state.c src/cpu/ee_execute.c tests/test_ee_execute.c -o test_ee_execute
+      - name: Run EE execution tests
+        run: ./test_ee_execute
