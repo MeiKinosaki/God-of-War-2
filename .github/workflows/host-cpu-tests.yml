@@ -4,17 +4,19 @@ on:
   push:
     paths:
       - "src/cpu/**"
+      - "src/memory/**"
       - "tests/**"
       - ".github/workflows/host-cpu-tests.yml"
   pull_request:
     paths:
       - "src/cpu/**"
+      - "src/memory/**"
       - "tests/**"
       - ".github/workflows/host-cpu-tests.yml"
   workflow_dispatch:
 
 jobs:
-  ee-cpu-tests:
+  host-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,3 +28,7 @@ jobs:
         run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/cpu src/cpu/ee_state.c tests/test_ee_state.c -o test_ee_state
       - name: Run state tests
         run: ./test_ee_state
+      - name: Compile memory tests
+        run: cc -std=c11 -Wall -Wextra -Werror -pedantic -Isrc/memory src/memory/ee_memory.c tests/test_ee_memory.c -o test_ee_memory
+      - name: Run memory tests
+        run: ./test_ee_memory
