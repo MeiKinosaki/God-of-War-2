@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include "ee_state.h"
 #include "ee_decode.h"
+#include "ee_memory.h"
 
 typedef enum {
     EE_STEP_OK = 0,
@@ -12,10 +13,12 @@ typedef enum {
     EE_STEP_INVALID_ARGUMENT
 } ee_step_result;
 
-/* Executes a deliberately limited subset of EE instructions.
- * The caller supplies instruction bits directly; instruction fetch and the
- * full PS2 exception/branch-delay model are not implemented in this stage.
+/* Limited instruction subset. The plain entry point intentionally has no
+ * memory access; LW/SW require the explicit memory-aware entry point.
  */
 ee_step_result ee_execute_instruction(ee_cpu_state *state, uint32_t instruction);
+ee_step_result ee_execute_instruction_with_memory(ee_cpu_state *state,
+                                                   uint32_t instruction,
+                                                   ee_memory *memory);
 
 #endif
